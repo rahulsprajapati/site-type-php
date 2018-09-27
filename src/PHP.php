@@ -103,7 +103,7 @@ class PHP extends EE_Site_Command {
 	 *
 	 * [--dbhost=<dbhost>]
 	 * : Set the database host. Pass value only when remote dbhost is required.
-	 * 
+	 *
 	 * [--with-local-redis]
 	 * : Enable cache with local redis container.
 	 *
@@ -202,7 +202,7 @@ class PHP extends EE_Site_Command {
 		$this->skip_status_check            = \EE\Utils\get_flag_value( $assoc_args, 'skip-status-check' );
 		$this->force                        = \EE\Utils\get_flag_value( $assoc_args, 'force' );
 
-		\EE\Site\Utils\init_checks();
+		\EE\Service\Utils\nginx_proxy_check();
 
 		\EE::log( 'Configuring project.' );
 
