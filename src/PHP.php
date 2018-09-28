@@ -250,29 +250,30 @@ class PHP extends EE_Site_Command {
 		$type            = \EE\Utils\get_flag_value( $assoc_args, 'type' );
 		$this->site_data = get_site_info( $args );
 
-		//TODO: take it from db
-		$this->site_data['cache_host'] = 'global-redis';
+		if( $type ) {
+			//TODO: take it from db
+			$this->site_data['cache_host'] = 'global-redis';
 
-		if ( $type && ! in_array( $this->site_data['site_type'], [ 'html' ] ) ) {
-			\EE::error( $this->site_data['site_type'] . ' site cannot be updated to php' );
+			if ( $type && ! in_array( $this->site_data['site_type'], [ 'php','html' ] ) ) {
+				\EE::error( $this->site_data['site_type'] . ' site cannot be updated to wp' );
+			}
+
+			EE::runcommand( 'site backup ' . $this->site_data['site_url'] );
+			EE::runcommand( 'site disable ' . $this->site_data['site_url'] );
+
+			EE::exec( sprintf( 'rm -rf %1$s/app/src/*; rm -rf %1$s/config/*; rm -f %1$s/.env && rm -f %1$s/docker-compose.yml', $this->site_data['site_fs_path'] ) );
+
+			$this->configure_site_files();
+
+			if ( ! empty( $this->site_data['site_ssl'] ) ) {
+				$this->dump_docker_compose_yml( [ 'nohttps' => false ] );
+			}
+			$site            = Site::find( $this->site_data['site_url'] );
+			$site->site_type = 'wp';
+			$site->save();
+
+			EE::runcommand( 'site enable ' . $this->site_data['site_url'] );
 		}
-
-		EE::runcommand( 'site backup ' . $this->site_data['site_url'] );
-		EE::runcommand( 'site disable ' . $this->site_data['site_url'] );
-
-		EE::exec( sprintf( 'rm -rf %1$s/app/src/*; rm -rf %1$s/config/*; rm -f %1$s/.env && rm -f %1$s/docker-compose.yml', $this->site_data['site_fs_path'] ) );
-
-		$this->configure_site_files();
-
-		if ( ! empty( $this->site_data['site_ssl'] ) ) {
-			$this->dump_docker_compose_yml( [ 'nohttps' => false ] );
-		}
-
-		$site            = Site::find( $this->site_data['site_url'] );
-		$site->site_type = 'php';
-		$site->save();
-
-		EE::runcommand( 'site enable ' . $this->site_data['site_url'] );
 	}
 
 	/**
