@@ -62,6 +62,13 @@ class PHP extends EE_Site_Command {
 	 */
 	private $fs;
 
+	/**
+	 * @var array $update_types_supported site types which support update to current site type.
+	 */
+	protected static $update_types_supported = [
+		'html'
+	];
+
 	public function __construct() {
 
 		parent::__construct();
@@ -240,6 +247,12 @@ class PHP extends EE_Site_Command {
 	 * [--cache]
 	 * : Enable cache on site.
 	 *
+	 * [--ssl=<ssl>]
+	 * : Enable cache on site.
+	 *
+	 * [--wildcard]
+	 * : Enable cache on site.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     # Update a html site to php.
@@ -251,17 +264,30 @@ class PHP extends EE_Site_Command {
 		$this->site_data = get_site_info( $args );
 
 		if( $type ) {
-			//TODO: take it from db
+			//TODO: take it from db when it's available
 			$this->site_data['cache_host'] = 'global-redis';
 
-			if ( $type && ! in_array( $this->site_data['site_type'], [ 'php','html' ] ) ) {
-				\EE::error( $this->site_data['site_type'] . ' site cannot be updated to wp' );
+			if ( $type && ! in_array( $this->site_data['site_type'], static::$update_types_supported ) ) {
+				\EE::error( $this->site_data['site_type'] . ' site cannot be updated to php' );
 			}
 
-			EE::runcommand( 'site backup ' . $this->site_data['site_url'] );
-			EE::runcommand( 'site disable ' . $this->site_data['site_url'] );
+			chdir( $this->site_data['site_fs_path'] );
 
-			EE::exec( sprintf( 'rm -rf %1$s/app/src/*; rm -rf %1$s/config/*; rm -f %1$s/.env && rm -f %1$s/docker-compose.yml', $this->site_data['site_fs_path'] ) );
+			if ( ! EE::exec( 'docker-compose exec nginx nginx -t' ) ) {
+				EE::error( 'Looks like there is some error in your nginx config. Please fix it to continue update.' );
+			}
+
+			EE::runcommand( 'site disable ' . $this->site_data['site_url'] );
+			$this->backup( [ $this->site_data['site_url'] ], [] );
+
+			$cleanup_files = [
+				'%1$s/app/src/*',
+				'%1$s/config/*',
+				'%1$s/.env',
+				'%1$s/docker-compose.yml',
+			];
+
+			EE::exec( sprintf( 'rm -rf ' . implode( ' ', $cleanup_files ), $this->site_data['site_fs_path'] ) );
 
 			$this->configure_site_files();
 
@@ -269,10 +295,11 @@ class PHP extends EE_Site_Command {
 				$this->dump_docker_compose_yml( [ 'nohttps' => false ] );
 			}
 			$site            = Site::find( $this->site_data['site_url'] );
-			$site->site_type = 'wp';
+			$site->site_type = 'php';
 			$site->save();
 
 			EE::runcommand( 'site enable ' . $this->site_data['site_url'] );
+			$this->info([ $this->site_data['site_url'] ],[]);
 		}
 	}
 
