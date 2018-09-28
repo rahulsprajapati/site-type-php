@@ -249,7 +249,6 @@ class PHP extends EE_Site_Command {
 		$args            = \EE\Site\Utils\auto_site_name( $args, __FUNCTION__, 'site' );
 		$type            = \EE\Utils\get_flag_value( $assoc_args, 'type' );
 		$this->site_data = get_site_info( $args );
-		$site            = Site::find( $this->site_data['site_url'] );
 
 		//TODO: take it from db
 		$this->site_data['cache_host'] = 'global-redis';
@@ -269,8 +268,8 @@ class PHP extends EE_Site_Command {
 			$this->dump_docker_compose_yml( [ 'nohttps' => false ] );
 		}
 
-		$site->site_enabled = '0';
-		$site->site_type    = 'php';
+		$site            = Site::find( $this->site_data['site_url'] );
+		$site->site_type = 'php';
 		$site->save();
 
 		EE::runcommand( 'site enable ' . $this->site_data['site_url'] );
